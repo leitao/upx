@@ -868,6 +868,44 @@ void ElfLinkerPpc32::relocate1(const Relocation *rel, upx_byte *location,
         super::relocate1(rel, location, value, type);
 }
 
+void ElfLinkerPpc64::relocate1(const Relocation *rel, upx_byte *location,
+                               upx_uint64_t value, const char *type)
+{
+    if (strncmp(type, "R_PPC64_", 9))
+        return super::relocate1(rel, location, value, type);
+    type += 9;
+
+    bool range_check = false;
+    if (strncmp(type, "PC", 2) == 0)
+    {
+        value -= rel->section->offset + rel->offset;
+        type += 2;
+        range_check = true;
+    }
+
+    if (strcmp(type, "8") == 0)
+    {
+#if (ACC_CC_PGI)
+        int displ = * (signed char *) location + (int) value; // CBUG
+#else
+        int displ = (signed char) *location + (int) value;
+#endif
+        if (range_check && (displ < -128 || displ > 127))
+            internal_error("target out of range (%d) in reloc %s:%x\n",
+                           displ, rel->section->name, rel->offset);
+        *location += value;
+    }
+    else if (strcmp(type, "16") == 0)
+        set_le16(location, get_le16(location) + value);
+    else if (strncmp(type, "32", 2) == 0)  // for "32" and "32S"
+        set_le32(location, get_le32(location) + value);
+    else if (strcmp(type, "64") == 0)
+        set_le64(location, get_le64(location) + value);
+    else
+        super::relocate1(rel, location, value, type);
+}
+
+
 
 void ElfLinkerX86::relocate1(const Relocation *rel, upx_byte *location,
                              upx_uint64_t value, const char *type)

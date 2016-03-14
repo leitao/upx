@@ -210,13 +210,14 @@ const char *Packer::getDecompressorSections() const
         ||  UPX_F_LINUX_ELF64_AMD  ==ph.format
         ||  UPX_F_LINUX_ELF32_ARMEL==ph.format
         ||  UPX_F_LINUX_ELFPPC32   ==ph.format
+        ||  UPX_F_LINUX_ELFPPC64   ==ph.format
         ||  UPX_F_LINUX_ELF32_ARMEB==ph.format
         ||  UPX_F_BSD_ELF_i386     ==ph.format
         ||  UPX_F_VMLINUZ_ARMEL    ==ph.format
         ||  UPX_F_VMLINUX_ARMEL    ==ph.format
         ||  UPX_F_VMLINUX_ARMEB    ==ph.format
         ||  UPX_F_VMLINUX_PPC32    ==ph.format
-        ||  UPX_F_MACH_PPC32       ==ph.format
+        ||  UPX_F_MACH_PPC64       ==ph.format
         ||  UPX_F_MACH_i386        ==ph.format
         ||  UPX_F_DYLIB_i386       ==ph.format
     ) {
@@ -250,13 +251,14 @@ void Packer::defineDecompressorSymbols()
     ||  UPX_F_LINUX_ELF64_AMD  ==ph.format
     ||  UPX_F_LINUX_ELF32_ARMEL==ph.format
     ||  UPX_F_LINUX_ELFPPC32   ==ph.format
+    ||  UPX_F_LINUX_ELFPPC64   ==ph.format
     ||  UPX_F_LINUX_ELF32_ARMEB==ph.format
     ||  UPX_F_BSD_ELF_i386     ==ph.format
     ||  UPX_F_VMLINUZ_ARMEL    ==ph.format
     ||  UPX_F_VMLINUX_ARMEL    ==ph.format
     ||  UPX_F_VMLINUX_ARMEB    ==ph.format
     ||  UPX_F_VMLINUX_PPC32    ==ph.format
-    ||  UPX_F_MACH_PPC32       ==ph.format
+    ||  UPX_F_MACH_PPC64       ==ph.format
     ||  UPX_F_MACH_i386        ==ph.format
     ||  UPX_F_DYLIB_i386       ==ph.format
     ) {

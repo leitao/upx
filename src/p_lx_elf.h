@@ -395,6 +395,28 @@ protected:
     virtual Linker* newLinker() const;
 };
 
+/*************************************************************************
+// linux/elf64ppc
+**************************************************************************/
+
+class PackLinuxElf64ppc : public PackLinuxElf64Le
+{
+    typedef PackLinuxElf64Le super;
+public:
+    PackLinuxElf64ppc(InputFile *f);
+    virtual ~PackLinuxElf64ppc();
+    virtual int getFormat() const { return UPX_F_LINUX_ELFPPC64; }
+    virtual const char *getName() const { return "linux/ElfPPC64"; }
+    virtual const char *getFullName(const options_t *) const { return "powerpc-linux.elf"; }
+    virtual const int *getFilters() const;
+    virtual bool canPack();
+protected:
+    virtual void pack1(OutputFile *, Filter &);  // generate executable header
+    virtual void buildLoader(const Filter *);
+    virtual Linker* newLinker() const;
+};
+
+
 
 /*************************************************************************
 // linux/elf386

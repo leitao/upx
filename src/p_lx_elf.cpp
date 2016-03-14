@@ -545,6 +545,16 @@ PackLinuxElf32ppc::getFilters() const
 }
 
 int const *
+PackLinuxElf64ppc::getFilters() const
+{
+    static const int filters[] = {
+        0xd0,
+    FT_END };
+    return filters;
+}
+
+
+int const *
 PackLinuxElf64amd::getFilters() const
 {
     static const int filters[] = {
@@ -617,6 +627,25 @@ Linker* PackLinuxElf32ppc::newLinker() const
 {
     return new ElfLinkerPpc32;
 }
+
+PackLinuxElf64ppc::PackLinuxElf64ppc(InputFile *f)
+    : super(f)
+{
+    e_machine = Elf64_Ehdr::EM_PPC64;
+    ei_class  = Elf64_Ehdr::ELFCLASS64;
+    ei_data   = Elf64_Ehdr::ELFDATA2LSB;
+    ei_osabi  = Elf64_Ehdr::ELFOSABI_LINUX;
+}
+
+PackLinuxElf64ppc::~PackLinuxElf64ppc()
+{
+}
+
+Linker* PackLinuxElf64ppc::newLinker() const
+{
+    return new ElfLinkerPpc64;
+}
+
 
 PackLinuxElf64amd::PackLinuxElf64amd(InputFile *f)
     : super(f)
@@ -1142,6 +1171,15 @@ PackLinuxElf32ppc::buildLoader(const Filter *ft)
         stub_powerpc_linux_elf_fold,  sizeof(stub_powerpc_linux_elf_fold), ft);
 }
 
+void
+PackLinuxElf64ppc::buildLoader(const Filter *ft)
+{
+    buildLinuxLoader(
+        stub_powerpc_linux_elf_entry, sizeof(stub_powerpc_linux_elf_entry),
+        stub_powerpc_linux_elf_fold,  sizeof(stub_powerpc_linux_elf_fold), ft);
+}
+
+
 static const
 #include "stub/amd64-linux.elf-entry.h"
 static const
@@ -1459,6 +1497,184 @@ proceed:
 
 bool
 PackLinuxElf64amd::canPack()
+{
+    union {
+        unsigned char buf[sizeof(Elf64_Ehdr) + 14*sizeof(Elf64_Phdr)];
+        //struct { Elf64_Ehdr ehdr; Elf64_Phdr phdr; } e;
+    } u;
+    COMPILE_TIME_ASSERT(sizeof(u) <= 1024)
+
+    fi->readx(u.buf, sizeof(u.buf));
+    fi->seek(0, SEEK_SET);
+    Elf64_Ehdr const *const ehdr = (Elf64_Ehdr *) u.buf;
+
+    // now check the ELF header
+    if (checkEhdr(ehdr) != 0)
+        return false;
+
+    // additional requirements for linux/elf386
+    if (get_te16(&ehdr->e_ehsize) != sizeof(*ehdr)) {
+        throwCantPack("invalid Ehdr e_ehsize; try '--force-execve'");
+        return false;
+    }
+    upx_uint64_t const e_shoff = get_te64(&ehdr->e_shoff);
+    upx_uint64_t const e_phoff = get_te64(&ehdr->e_phoff);
+    if (e_phoff != sizeof(*ehdr)) {// Phdrs not contiguous with Ehdr
+        throwCantPack("non-contiguous Ehdr/Phdr; try '--force-execve'");
+        return false;
+    }
+
+    // The first PT_LOAD64 must cover the beginning of the file (0==p_offset).
+    Elf64_Phdr const *phdr = (Elf64_Phdr const *)(u.buf + (unsigned) e_phoff);
+    for (unsigned j=0; j < e_phnum; ++phdr, ++j) {
+        if (j >= 14)
+            return false;
+        if (phdr->PT_LOAD64 == get_te32(&phdr->p_type)) {
+            // Just avoid the "rewind" when unpacking?
+            //if (phdr->p_offset != 0) {
+            //    throwCantPack("invalid Phdr p_offset; try '--force-execve'");
+            //    return false;
+            //}
+            load_va = get_te64(&phdr->p_vaddr);
+            exetype = 1;
+            break;
+        }
+    }
+    // We want to compress position-independent executable (gcc -pie)
+    // main programs, but compressing a shared library must be avoided
+    // because the result is no longer usable.  In theory, there is no way
+    // to tell them apart: both are just ET_DYN.  Also in theory,
+    // neither the presence nor the absence of any particular symbol name
+    // can be used to tell them apart; there are counterexamples.
+    // However, we will use the following heuristic suggested by
+    // Peter S. Mazinger <ps.m@gmx.net> September 2005:
+    // If a ET_DYN has __libc_start_main as a global undefined symbol,
+    // then the file is a position-independent executable main program
+    // (that depends on libc.so.6) and is eligible to be compressed.
+    // Otherwise (no __libc_start_main as global undefined): skip it.
+    // Also allow  __uClibc_main  and  __uClibc_start_main .
+
+    if (Elf32_Ehdr::ET_DYN==get_te16(&ehdr->e_type)) {
+        // The DT_STRTAB has no designated length.  Read the whole file.
+        file_image = new char[file_size];
+        fi->seek(0, SEEK_SET);
+        fi->readx(file_image, file_size);
+        memcpy(&ehdri, ehdr, sizeof(Elf32_Ehdr));
+        phdri= (Elf64_Phdr       *)((size_t)e_phoff + file_image);  // do not free() !!
+        shdri= (Elf64_Shdr const *)((size_t)e_shoff + file_image);  // do not free() !!
+
+        n_elf_shnum = get_te16(&ehdr->e_shnum);
+        //sec_strndx = &shdri[ehdr->e_shstrndx];
+        //shstrtab = (char const *)(sec_strndx->sh_offset + file_image);
+        sec_dynsym = elf_find_section_type(Elf64_Shdr::SHT_DYNSYM);
+        if (sec_dynsym)
+            sec_dynstr = get_te32(&sec_dynsym->sh_link) + shdri;
+
+        int j= e_phnum;
+        phdr= phdri;
+        for (; --j>=0; ++phdr)
+        if (Elf64_Phdr::PT_DYNAMIC==get_te32(&phdr->p_type)) {
+            dynseg= (Elf64_Dyn const *)(get_te32(&phdr->p_offset) + file_image);
+            break;
+        }
+        // elf_find_dynamic() returns 0 if 0==dynseg.
+        dynstr=          (char const *)elf_find_dynamic(Elf64_Dyn::DT_STRTAB);
+        dynsym=     (Elf64_Sym const *)elf_find_dynamic(Elf64_Dyn::DT_SYMTAB);
+
+        // Modified 2009-10-10 to detect a ProgramLinkageTable relocation
+        // which references the symbol, because DT_GNU_HASH contains only
+        // defined symbols, and there might be no DT_HASH.
+
+        Elf64_Rela const *
+        jmprela= (Elf64_Rela const *)elf_find_dynamic(Elf64_Dyn::DT_JMPREL);
+        for (   int sz = elf_unsigned_dynamic(Elf64_Dyn::DT_PLTRELSZ);
+                0 < sz;
+                (sz -= sizeof(Elf64_Rela)), ++jmprela
+        ) {
+            unsigned const symnum = get_te64(&jmprela->r_info) >> 32;
+            char const *const symnam = get_te32(&dynsym[symnum].st_name) + dynstr;
+            if (0==strcmp(symnam, "__libc_start_main")
+            ||  0==strcmp(symnam, "__uClibc_main")
+            ||  0==strcmp(symnam, "__uClibc_start_main"))
+                goto proceed;
+        }
+
+        // Heuristic HACK for shared libraries (compare Darwin (MacOS) Dylib.)
+        // If there is an existing DT_INIT, and if everything that the dynamic
+        // linker ld-linux needs to perform relocations before calling DT_INIT
+        // resides below the first SHT_EXECINSTR Section in one PT_LOAD, then
+        // compress from the first executable Section to the end of that PT_LOAD.
+        // We must not alter anything that ld-linux might touch before it calls
+        // the DT_INIT function.
+        //
+        // Obviously this hack requires that the linker script put pieces
+        // into good positions when building the original shared library,
+        // and also requires ld-linux to behave.
+
+        if (elf_find_dynamic(Elf64_Dyn::DT_INIT)) {
+            if (elf_has_dynamic(Elf64_Dyn::DT_TEXTREL)) {
+                shdri = NULL;
+                phdri = NULL;
+                throwCantPack("DT_TEXTREL found; re-compile with -fPIC");
+                goto abandon;
+            }
+            Elf64_Shdr const *shdr = shdri;
+            xct_va = ~0ull;
+            for (j= n_elf_shnum; --j>=0; ++shdr) {
+                if (Elf64_Shdr::SHF_EXECINSTR & get_te32(&shdr->sh_flags)) {
+                    xct_va = umin64(xct_va, get_te64(&shdr->sh_addr));
+                }
+            }
+            // Rely on 0==elf_unsigned_dynamic(tag) if no such tag.
+            upx_uint64_t const va_gash = elf_unsigned_dynamic(Elf64_Dyn::DT_GNU_HASH);
+            upx_uint64_t const va_hash = elf_unsigned_dynamic(Elf64_Dyn::DT_HASH);
+            if (xct_va < va_gash  ||  (0==va_gash && xct_va < va_hash)
+            ||  xct_va < elf_unsigned_dynamic(Elf64_Dyn::DT_STRTAB)
+            ||  xct_va < elf_unsigned_dynamic(Elf64_Dyn::DT_SYMTAB)
+            ||  xct_va < elf_unsigned_dynamic(Elf64_Dyn::DT_REL)
+            ||  xct_va < elf_unsigned_dynamic(Elf64_Dyn::DT_RELA)
+            ||  xct_va < elf_unsigned_dynamic(Elf64_Dyn::DT_JMPREL)
+            ||  xct_va < elf_unsigned_dynamic(Elf64_Dyn::DT_VERDEF)
+            ||  xct_va < elf_unsigned_dynamic(Elf64_Dyn::DT_VERSYM)
+            ||  xct_va < elf_unsigned_dynamic(Elf64_Dyn::DT_VERNEEDED) ) {
+                phdri = NULL;
+                shdri = NULL;
+                throwCantPack("DT_ tag above stub");
+                goto abandon;
+            }
+            for ((shdr= shdri), (j= n_elf_shnum); --j>=0; ++shdr) {
+                upx_uint64_t const sh_addr = get_te64(&shdr->sh_addr);
+                if ( sh_addr==va_gash
+                ||  (sh_addr==va_hash && 0==va_gash) ) {
+                    shdr= &shdri[get_te32(&shdr->sh_link)];  // the associated SHT_SYMTAB
+                    hatch_off = (char *)&ehdri.e_ident[11] - (char *)&ehdri;
+                    break;
+                }
+            }
+            xct_off = elf_get_offset_from_address(xct_va);
+            goto proceed;  // But proper packing depends on checking xct_va.
+        }
+abandon:
+        phdri = 0;  // Done with this
+        return false;
+proceed:
+        phdri = 0;
+    }
+    // XXX Theoretically the following test should be first,
+    // but PackUnix::canPack() wants 0!=exetype ?
+    if (!super::canPack())
+        return false;
+    assert(exetype == 1);
+
+    exetype = 0;
+
+    // set options
+    opt->o_unix.blocksize = blocksize = file_size;
+    return true;
+}
+
+bool
+PackLinuxElf64ppc::canPack()
 {
     union {
         unsigned char buf[sizeof(Elf64_Ehdr) + 14*sizeof(Elf64_Phdr)];
@@ -2165,6 +2381,15 @@ void PackLinuxElf32ppc::pack1(OutputFile *fo, Filter &ft)
         return;
     generateElfHdr(fo, stub_powerpc_linux_elf_fold, getbrk(phdri, e_phnum) );
 }
+
+void PackLinuxElf64ppc::pack1(OutputFile *fo, Filter &ft)
+{
+    super::pack1(fo, ft);
+    if (0!=xct_off)  // shared library
+        return;
+    generateElfHdr(fo, stub_powerpc_linux_elf_fold, getbrk(phdri, e_phnum) );
+}
+
 
 void PackLinuxElf64::pack1(OutputFile *fo, Filter & /*ft*/)
 {

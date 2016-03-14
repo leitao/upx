@@ -506,6 +506,11 @@ private:
 
 #define UPX_F_WIN64_PEP         36
 
+#define UPX_F_MACH_PPC64        37
+#define UPX_F_LINUX_ELFPPC64    38
+#define UPX_F_VMLINUX_PPC64     39
+#define UPX_F_DYLIB_PPC64       40
+
 #define UPX_F_PLAIN_TEXT        127
 
 #define UPX_F_ATARI_TOS         129
