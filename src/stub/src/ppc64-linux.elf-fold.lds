@@ -1,4 +1,4 @@
-/* powerpc-linux.elf-fold.lds --
+/* ppc64-linux.elf-fold.lds --
 
    This file is part of the UPX executable compressor.
 

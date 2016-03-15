@@ -1,4 +1,4 @@
-/*  powerpc-linux.elf-entry.S -- Linux program entry point & decompressor (Elf binary)
+/*  ppc64-linux.elf-entry.S -- Linux program entry point & decompressor (Elf binary)
 *
 *  This file is part of the UPX executable compressor.
 *
@@ -29,8 +29,8 @@
 *  <jreiser@users.sourceforge.net>
 */
 
-#include "arch/powerpc/32/macros.S"
-#include "arch/powerpc/32/ppc_regs.h"
+#include "arch/ppc64/64/macros.S"
+#include "arch/ppc64/64/ppc_regs.h"
 
 sz_b_info= 12
   sz_unc= 0
@@ -78,15 +78,15 @@ SZ_DLINE=128  # size of data cache line in Apple G5
 #define disp a7
 
   section NRV2E
-#include "arch/powerpc/32/nrv2e_d.S"
+#include "arch/ppc64/64/nrv2e_d.S"
 
   section NRV2D
-#include "arch/powerpc/32/nrv2d_d.S"
+#include "arch/ppc64/64/nrv2d_d.S"
 
   section NRV2B
-#include "arch/powerpc/32/nrv2b_d.S"
+#include "arch/ppc64/64/nrv2b_d.S"
 
-#include "arch/powerpc/32/lzma_d.S"
+#include "arch/ppc64/64/lzma_d.S"
 
   section NRV_TAIL
 eof_nrv:
