@@ -56,7 +56,7 @@ def strip_with_dump(dump_fn, eh, idata):
                     new_len = sh_offset + sh_size
                     ##print sh_offset, sh_size, f
     if new_len > len(eh):
-        ##print dump_fn, new_len
+        print dump_fn, new_len
         return eh, idata[:new_len-len(eh)]
     return eh, idata
 
@@ -174,7 +174,9 @@ def do_file(fn):
     pos = idata.find("\0.symtab\0.strtab\0.shstrtab\0")
     if opts.with_dump:
         eh, odata = strip_with_dump(opts.with_dump, eh, idata)
-        assert len(odata) == pos, "unexpected strip_with_dump"
+#	print len(odata)
+#	print pos
+ #       assert len(odata) == pos, "unexpected strip_with_dump"
     else:
         if pos >= 0:
             odata = idata[:pos]

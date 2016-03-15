@@ -119,6 +119,8 @@ STUBS += powerpc-linux.elf-entry.h
 STUBS += powerpc-linux.elf-fold.h
 STUBS += powerpc-linux.kernel.vmlinux-head.h
 STUBS += powerpc-linux.kernel.vmlinux.h
+STUBS += ppc64-linux.elf-entry.h
+STUBS += ppc64-linux.elf-fold.h
 STUBS += thumb-eabi-linux.shlib-init.h
 endif
 
@@ -222,12 +224,12 @@ tc.default.sstrip     = sstrip
 tc.default.xstrip     = $(PYTHON) $(top_srcdir)/src/stub/scripts/xstrip.py
 
 # default multiarch-binutils
-tc.default.m-ar       = multiarch-ar-2.17
-tc.default.m-ld       = multiarch-ld-2.17 $(if $(tc_bfdname),-b $(tc_bfdname))
-tc.default.m-nm       = multiarch-nm-2.17 $(if $(tc_bfdname),--target=$(tc_bfdname))
-tc.default.m-objcopy  = multiarch-objcopy-2.17 $(if $(tc_bfdname),-F $(tc_bfdname))
-tc.default.m-objdump  = multiarch-objdump-2.17 $(if $(tc_bfdname),-b $(tc_bfdname)) $(if $(tc_bfdarch),-m $(tc_bfdarch))
-tc.default.m-readelf  = multiarch-readelf-2.17
+tc.default.m-ar       = ar
+tc.default.m-ld       = ld $(if $(tc_bfdname),-b $(tc_bfdname))
+tc.default.m-nm       = nm $(if $(tc_bfdname),--target=$(tc_bfdname))
+tc.default.m-objcopy  = objcopy $(if $(tc_bfdname),-F $(tc_bfdname))
+tc.default.m-objdump  = objdump $(if $(tc_bfdname),-b $(tc_bfdname)) $(if $(tc_bfdarch),-m $(tc_bfdarch))
+tc.default.m-readelf  = readelf
 
 # default binutils
 tc.default.ld         = $(call tc,m-ld)
@@ -1228,6 +1230,38 @@ tmp/powerpc-linux.elf-fold.o : $(srcdir)/src/$$T.S
 tmp/powerpc-linux.elf-main.o : $(srcdir)/src/$$T.c
 	$(call tc,gcc) -c -Os $< -o $@
 	$(call tc,f-objstrip,$@)
+
+
+# /***********************************************************************
+# // ppc64-linux.elf
+# ************************************************************************/
+
+ppc64-linux.elf%.h : tc_list = ppc64-linux.elf default
+ppc64-linux.elf%.h : tc_bfdname = elf64-powerpcle
+
+tc.ppc64-linux.elf.gcc  = gcc -m64 -mlittle-endian -mcpu=power8 -nostdinc -MMD -MT $@
+tc.ppc64-linux.elf.gcc += -fno-exceptions -fno-asynchronous-unwind-tables -fno-stack-protector
+tc.ppc64-linux.elf.gcc += -Wall -W -Wcast-align -Wcast-qual -Wstrict-prototypes -Wwrite-strings 
+
+ppc64-linux.elf-entry.h : $(srcdir)/src/$$T.S
+	$(call tc,gcc) -c $< -o tmp/$T.bin
+	$(call tc,f-embed_objinfo,tmp/$T.bin)
+	$(call tc,bin2h) tmp/$T.bin $@
+
+ppc64-linux.elf-fold.h : tmp/$$T.o tmp/ppc64-linux.elf-main.o $(srcdir)/src/$$T.lds
+	$(call tc,ld) --strip-all -T $(srcdir)/src/$T.lds -Map tmp/$T.map $(filter %.o,$^) -o tmp/$T.bin
+	$(call tc,f-objstrip,tmp/$T.bin)
+	$(call tc,sstrip) tmp/$T.bin
+	$(call tc,bin2h) tmp/$T.bin $@
+
+tmp/ppc64-linux.elf-fold.o : $(srcdir)/src/$$T.S
+	$(call tc,gcc) -c $< -o $@
+	$(call tc,f-objstrip,$@)
+
+tmp/ppc64-linux.elf-main.o : $(srcdir)/src/$$T.c
+	$(call tc,gcc) -c -Os $< -o $@
+	$(call tc,f-objstrip,$@)
+
 
 
 # /***********************************************************************

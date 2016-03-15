@@ -1171,12 +1171,17 @@ PackLinuxElf32ppc::buildLoader(const Filter *ft)
         stub_powerpc_linux_elf_fold,  sizeof(stub_powerpc_linux_elf_fold), ft);
 }
 
+static const
+#include "stub/ppc64-linux.elf-entry.h"
+static const
+#include "stub/ppc64-linux.elf-fold.h"
+
 void
 PackLinuxElf64ppc::buildLoader(const Filter *ft)
 {
     buildLinuxLoader(
-        stub_powerpc_linux_elf_entry, sizeof(stub_powerpc_linux_elf_entry),
-        stub_powerpc_linux_elf_fold,  sizeof(stub_powerpc_linux_elf_fold), ft);
+        stub_ppc64_linux_elf_entry, sizeof(stub_powerpc_linux_elf_entry),
+        stub_ppc64_linux_elf_fold,  sizeof(stub_powerpc_linux_elf_fold), ft);
 }
 
 
@@ -2387,7 +2392,7 @@ void PackLinuxElf64ppc::pack1(OutputFile *fo, Filter &ft)
     super::pack1(fo, ft);
     if (0!=xct_off)  // shared library
         return;
-    generateElfHdr(fo, stub_powerpc_linux_elf_fold, getbrk(phdri, e_phnum) );
+    generateElfHdr(fo, stub_ppc64_linux_elf_fold, getbrk(phdri, e_phnum) );
 }
 
 
