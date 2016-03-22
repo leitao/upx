@@ -1180,8 +1180,8 @@ void
 PackLinuxElf64ppc::buildLoader(const Filter *ft)
 {
     buildLinuxLoader(
-        stub_ppc64_linux_elf_entry, sizeof(stub_powerpc_linux_elf_entry),
-        stub_ppc64_linux_elf_fold,  sizeof(stub_powerpc_linux_elf_fold), ft);
+        stub_ppc64_linux_elf_entry, sizeof(stub_ppc64_linux_elf_entry),
+        stub_ppc64_linux_elf_fold,  sizeof(stub_ppc64_linux_elf_fold), ft);
 }
 
 
