@@ -871,9 +871,9 @@ void ElfLinkerPpc32::relocate1(const Relocation *rel, upx_byte *location,
 void ElfLinkerPpc64::relocate1(const Relocation *rel, upx_byte *location,
                                upx_uint64_t value, const char *type)
 {
-    if (strncmp(type, "R_PPC64_", 9))
+    if (strncmp(type, "R_PPC64_REL", 11))
         return super::relocate1(rel, location, value, type);
-    type += 9;
+    type += 11;
 
     bool range_check = false;
     if (strncmp(type, "PC", 2) == 0)
@@ -895,8 +895,12 @@ void ElfLinkerPpc64::relocate1(const Relocation *rel, upx_byte *location,
                            displ, rel->section->name, rel->offset);
         *location += value;
     }
+    else if (strncmp(type, "14", 2) == 0)  // for "32" and "32S"
+        set_le16(location, get_le16(location) + value);
     else if (strcmp(type, "16") == 0)
         set_le16(location, get_le16(location) + value);
+    else if (strncmp(type, "24", 2) == 0)  // for "32" and "32S"
+        set_le24(location, get_le24(location) + value);
     else if (strncmp(type, "32", 2) == 0)  // for "32" and "32S"
         set_le32(location, get_le32(location) + value);
     else if (strcmp(type, "64") == 0)
