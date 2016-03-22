@@ -406,7 +406,7 @@ public:
     PackLinuxElf64ppc(InputFile *f);
     virtual ~PackLinuxElf64ppc();
     virtual int getFormat() const { return UPX_F_LINUX_ELFPPC64; }
-    virtual const char *getName() const { return "linux/ElfPPC64"; }
+    virtual const char *getName() const { return "ElfPPC64"; }
     virtual const char *getFullName(const options_t *) const { return "powerpc-linux.elf"; }
     virtual const int *getFilters() const;
     virtual bool canPack();
